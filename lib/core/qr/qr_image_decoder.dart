@@ -1,16 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 import 'package:zxing2/qrcode.dart';
 
-/// Pure-Dart QR code decoder for image files (used on Desktop and from gallery).
+/// Pure-Dart QR code decoder for image bytes across all platforms including Web.
 class QrImageDecoder {
-  static Future<String?> decodeFile(File file) async {
-    final bytes = await file.readAsBytes();
-    return decodeBytes(bytes);
-  }
-
   static String? decodeBytes(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
     if (decoded == null) return null;
@@ -35,7 +29,6 @@ class QrImageDecoder {
     try {
       return reader.decode(bitmap).text;
     } catch (_) {
-      // Retry with GlobalHistogramBinarizer for low-contrast photos/screenshots.
       try {
         final fallbackBitmap = BinaryBitmap(GlobalHistogramBinarizer(source));
         return reader.decode(fallbackBitmap).text;

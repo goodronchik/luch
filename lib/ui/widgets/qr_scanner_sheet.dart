@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../theme/app_theme.dart';
 
-/// Full-screen camera scanner used on Android, iOS, and macOS.
+/// Camera QR scanner supporting Android, iOS, macOS, and Web (HTTPS/localhost).
 class QrScannerSheet extends StatefulWidget {
   const QrScannerSheet({super.key});
 
@@ -29,13 +30,15 @@ class _QrScannerSheetState extends State<QrScannerSheet> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
         title: const Text('Сканировать QR-код'),
         actions: [
-          IconButton(
-            tooltip: 'Фонарик',
-            icon: const Icon(Icons.flash_on_rounded),
-            onPressed: () => _controller.toggleTorch(),
-          ),
+          if (!kIsWeb)
+            IconButton(
+              tooltip: 'Фонарик',
+              icon: const Icon(Icons.flash_on_rounded),
+              onPressed: () => _controller.toggleTorch(),
+            ),
           IconButton(
             tooltip: 'Переключить камеру',
             icon: const Icon(Icons.cameraswitch_rounded),
@@ -65,7 +68,7 @@ class _QrScannerSheetState extends State<QrScannerSheet> {
               height: 250,
               decoration: BoxDecoration(
                 border: Border.all(color: AppTheme.accent, width: 3),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(22),
               ),
             ),
           ),
@@ -76,7 +79,7 @@ class _QrScannerSheetState extends State<QrScannerSheet> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withValues(alpha: 0.72),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Text(

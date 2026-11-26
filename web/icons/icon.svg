@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Луч">
+  <defs>
+    <radialGradient id="s-bg" cx="46%" cy="40%" r="78%">
+      <stop offset="0" stop-color="#101a30"/>
+      <stop offset=".55" stop-color="#070b15"/>
+      <stop offset="1" stop-color="#02040a"/>
+    </radialGradient>
+    <radialGradient id="s-earth" cx="32%" cy="26%" r="82%">
+      <stop offset="0" stop-color="#eef8ff"/>
+      <stop offset=".28" stop-color="#9dcdf0"/>
+      <stop offset=".62" stop-color="#4c8ebd"/>
+      <stop offset="1" stop-color="#0a2138"/>
+    </radialGradient>
+    <radialGradient id="s-planet" cx="32%" cy="26%" r="82%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".34" stop-color="#c5d5e8"/>
+      <stop offset=".72" stop-color="#657489"/>
+      <stop offset="1" stop-color="#141c29"/>
+    </radialGradient>
+    <linearGradient id="s-beam" x1="16" y1="48" x2="48" y2="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b8ff3c"/>
+      <stop offset=".18" stop-color="#eafff3"/>
+      <stop offset=".7" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cdeaff"/>
+    </linearGradient>
+    <linearGradient id="s-frame" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".8"/>
+      <stop offset=".5" stop-color="#b9d5f2" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".45"/>
+    </linearGradient>
+    <filter id="s-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+    <filter id="s-glow-soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation=".9"/>
+    </filter>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#s-bg)"/>
+  <g opacity=".85" fill="#ffffff">
+    <circle cx="24" cy="14" r=".55" opacity=".7"/>
+    <circle cx="39" cy="10" r=".4" opacity=".5"/>
+    <circle cx="48" cy="37" r=".5" opacity=".55"/>
+    <circle cx="36" cy="49" r=".7" opacity=".6"/>
+    <circle cx="18" cy="35" r=".5" opacity=".45"/>
+    <circle cx="52" cy="25" r=".35" opacity=".5"/>
+    <circle cx="28" cy="24" r=".3" opacity=".4"/>
+    <path d="M 30 19 L 30.6 20.6 L 32.2 21.2 L 30.6 21.8 L 30 23.4 L 29.4 21.8 L 27.8 21.2 L 29.4 20.6 Z" opacity=".8"/>
+  </g>
+
+  <g opacity=".9">
+    <ellipse cx="49" cy="15" rx="12.4" ry="3.1" fill="none" stroke="#d9e9ff" stroke-opacity=".6" stroke-width="1.25" transform="rotate(-22 49 15)"/>
+  </g>
+  <circle cx="49" cy="15" r="8.1" fill="url(#s-planet)"/>
+  <path d="M 43 12 C 46 10.4 51 10 56 12" stroke="#ffffff" stroke-opacity=".38" stroke-width=".7" fill="none"/>
+  <circle cx="49" cy="15" r="8.1" fill="none" stroke="#ffffff" stroke-opacity=".6" stroke-width=".55"/>
+  <g opacity=".95">
+    <ellipse cx="49" cy="15" rx="12.4" ry="3.1" fill="none" stroke="#eef7ff" stroke-opacity=".8" stroke-width="1.25" transform="rotate(-22 49 15)" clip-path="inset(0 0 0 0)"/>
+  </g>
+
+  <g>
+    <circle cx="13" cy="51" r="18.4" fill="#6fb4ed" opacity=".2" filter="url(#s-glow)"/>
+    <circle cx="13" cy="51" r="15.4" fill="url(#s-earth)"/>
+    <path d="M 2 47 C 7 43 10 44 13 40 C 16 37 21 38 24 42 C 26 44 28 46 30 47" stroke="#f4fbff" stroke-opacity=".5" stroke-width="1.5" fill="none"/>
+    <path d="M 4 55 C 9 51 13 52 16 49 C 19 47 23 48 26 51" stroke="#dff2ff" stroke-opacity=".25" stroke-width="1.1" fill="none"/>
+    <circle cx="13" cy="51" r="15.4" fill="none" stroke="#d9efff" stroke-opacity=".55" stroke-width=".65"/>
+    <circle cx="13" cy="51" r="16.2" fill="none" stroke="#a8d7ff" stroke-opacity=".2" stroke-width="1.4"/>
+  </g>
+
+  <g style="mix-blend-mode:screen">
+    <path d="M 16 48 Q 31 32 47 17 L 52 22 Q 36 38 21 54 Z" fill="#dff3ff" opacity=".24" filter="url(#s-glow)"/>
+    <path d="M 17 47 Q 32 31 47 17" stroke="url(#s-beam)" stroke-width="4.6" stroke-linecap="round" fill="none" opacity=".38" filter="url(#s-glow)"/>
+    <path d="M 17 47 Q 32 31 47 17" stroke="url(#s-beam)" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+    <path d="M 47.5 17 L 47.9 16.6" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="47" cy="17" rx="5.6" ry="4.6" fill="#ffffff" opacity=".75" filter="url(#s-glow-soft)"/>
+    <ellipse cx="47" cy="17" rx="2" ry="1.7" fill="#ffffff"/>
+  </g>
+
+  <g transform="translate(31.5 32.5) rotate(-28)" fill="#ffffff">
+    <rect x="-3.4" y="-4.5" width="6.8" height="9" rx="1.2" fill="#eaf5ff" fill-opacity=".82" stroke="#ffffff" stroke-opacity=".85" stroke-width=".45"/>
+    <path d="M .8 -4.5 L 3.4 -1.9 L .8 -1.9 Z" fill="#ffffff" fill-opacity=".75" stroke="none"/>
+    <rect x="-2" y=".2" width="4" height=".55" rx=".27" fill="#2a3b52" opacity=".65" stroke="none"/>
+    <rect x="-2" y="1.4" width="2.7" height=".55" rx=".27" fill="#2a3b52" opacity=".5" stroke="none"/>
+  </g>
+  <g transform="translate(40 24.5) rotate(-28)" fill="#ffffff" opacity=".85">
+    <rect x="-2.4" y="-3.1" width="4.8" height="6.2" rx=".9" fill="#eaf5ff" fill-opacity=".68" stroke="#ffffff" stroke-opacity=".7" stroke-width=".4"/>
+    <rect x="-1.4" y=".2" width="2.8" height=".45" rx=".22" fill="#2a3b52" opacity=".6" stroke="none"/>
+  </g>
+
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="url(#s-frame)" stroke-width="1.3"/>
+  <rect x="3" y="3" width="58" height="58" rx="11.5" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width=".6"/>
+</svg>

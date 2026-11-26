@@ -1,4 +1,4 @@
-name: Build Installers (Android, iOS, macOS, Windows, Linux)
+name: Build Installers & Web PWA (Web, Android, iOS, macOS, Windows, Linux)
 
 on:
   push:
@@ -124,3 +124,23 @@ jobs:
         with:
           name: luch-macos-dmg
           path: build/dmg/Luch-macOS.dmg
+
+  build-web-pwa:
+    name: Web / PWA (for /luch/ and root)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build web --release --base-href /luch/
+      - name: Archive Web PWA bundle
+        run: |
+          mkdir -p build/web-dist
+          tar -czf build/web-dist/luch-web-pwa.tar.gz -C build/web .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luch-web-pwa
+          path: build/web-dist/luch-web-pwa.tar.gz

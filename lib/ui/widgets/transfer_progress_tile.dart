@@ -10,21 +10,25 @@ class TransferProgressTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
     final isSend = progress.direction == TransferDirection.sent;
     final statusColor = switch (progress.status) {
       TransferStatus.completed => AppTheme.success,
       TransferStatus.failed => AppTheme.danger,
-      TransferStatus.transferring => AppTheme.accent,
-      TransferStatus.pending => Colors.white54,
+      TransferStatus.transferring => cs.primary,
+      TransferStatus.pending => Theme.of(context).hintColor,
     };
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceAlt,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        color: isDark ? AppTheme.surfaceAlt : AppTheme.lightSurfaceAlt,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppTheme.border : AppTheme.lightBorder,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,13 +46,17 @@ class TransferProgressTile extends StatelessWidget {
                   progress.fileName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 _statusText(),
-                style: TextStyle(fontSize: 12, color: statusColor),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                ),
               ),
             ],
           ),
@@ -60,7 +68,7 @@ class TransferProgressTile extends StatelessWidget {
                   ? 1.0
                   : progress.fraction,
               minHeight: 6,
-              backgroundColor: AppTheme.bg,
+              backgroundColor: isDark ? AppTheme.bg : AppTheme.lightBg,
               valueColor: AlwaysStoppedAnimation<Color>(statusColor),
             ),
           ),
@@ -70,12 +78,12 @@ class TransferProgressTile extends StatelessWidget {
             children: [
               Text(
                 '${formatBytes(progress.bytesTransferred)} / ${formatBytes(progress.totalBytes)}',
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               if (progress.peerLabel != null)
                 Text(
                   progress.peerLabel!,
-                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
           ),
@@ -96,7 +104,9 @@ class TransferProgressTile extends StatelessWidget {
       case TransferStatus.pending:
         return 'Ожидание';
       case TransferStatus.transferring:
-        return formatSpeed(progress.speedBytesPerSec);
+        return progress.speedBytesPerSec > 0
+            ? formatSpeed(progress.speedBytesPerSec)
+            : '${(progress.fraction * 100).round()}%';
       case TransferStatus.completed:
         return 'Готово';
       case TransferStatus.failed:

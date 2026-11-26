@@ -1,9 +1,10 @@
-import 'dart:io';
-
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/platform/file_io_adapter.dart';
+import '../../core/platform/platform_info.dart';
 import '../../core/protocol/transfer_models.dart';
 import '../../core/qr/qr_image_decoder.dart';
 import '../../state/luch_controller.dart';
@@ -22,18 +23,12 @@ class ReceiveScreen extends StatefulWidget {
 }
 
 class _ReceiveScreenState extends State<ReceiveScreen> {
-  final TextEditingController _urlController = TextEditingController();
+  final TextEditingController _inputController = TextEditingController();
   bool _isDraggingQr = false;
-
-  bool get _supportsLiveCamera =>
-      Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
-
-  bool get _isDesktop =>
-      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   @override
   void dispose() {
-    _urlController.dispose();
+    _inputController.dispose();
     super.dispose();
   }
 
@@ -42,13 +37,13 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
       MaterialPageRoute(builder: (_) => const QrScannerSheet()),
     );
     if (result != null && result.isNotEmpty) {
-      _urlController.text = result;
-      await widget.controller.connectToQrPayload(result);
+      _inputController.text = result;
+      await widget.controller.connectWithInput(result);
     }
   }
 
-  Future<void> _decodeQrFromImagePath(String path) async {
-    final decoded = await QrImageDecoder.decodeFile(File(path));
+  Future<void> _decodeQrBytes(Uint8List bytes) async {
+    final decoded = QrImageDecoder.decodeBytes(bytes);
     if (!mounted) return;
     if (decoded == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -58,8 +53,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
       );
       return;
     }
-    _urlController.text = decoded;
-    await widget.controller.connectToQrPayload(decoded);
+    _inputController.text = decoded;
+    await widget.controller.connectWithInput(decoded);
   }
 
   Future<void> _pickQrImage() async {
@@ -67,27 +62,27 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
       dialogTitle: 'Выберите изображение или скриншот с QR-кодом',
       type: FileType.image,
     );
-    final path = picked?.path;
-    if (path != null) {
-      await _decodeQrFromImagePath(path);
-    }
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    await _decodeQrBytes(bytes);
   }
 
-  Future<void> _pickFilesToPushToPeer() async {
+  Future<void> _pickFilesToPushLan() async {
     final picked = await FilePicker.pickFiles(
-      dialogTitle: 'Выберите файлы для отправки на принимающее устройство',
+      dialogTitle: 'Выберите файлы для отправки на устройство',
     );
     if (picked.isEmpty) return;
-    final paths =
-        picked.map((f) => f.path).whereType<String>().toList(growable: false);
-    if (paths.isNotEmpty) {
-      await widget.controller.uploadFilesToConnectedPeer(paths);
+    final sources = await PlatformFileStorage.sourcesFromPlatformFiles(picked);
+    if (sources.isNotEmpty) {
+      await widget.controller.uploadLanFiles(sources);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final receiveProgress = c.transfers;
 
     return ListView(
@@ -101,36 +96,34 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.qr_code_scanner_rounded,
-                        color: AppTheme.accent),
+                    Icon(Icons.qr_code_scanner_rounded, color: cs.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Подключиться по QR отправителя',
+                        'Получить файлы или текст',
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
-                  _supportsLiveCamera
-                      ? 'Отсканируйте QR-код камерой, откройте картинку с QR или вставьте ссылку сессии.'
-                      : 'Откройте картинку/скриншот с QR-кодом, перетащите его сюда или вставьте ссылку сессии.',
-                  style: const TextStyle(fontSize: 13, color: Colors.white60),
+                  'Отсканируйте QR-код, выберите скриншот с QR или введите 24-символьный код вручную.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 14),
                 DropTarget(
-                  enable: _isDesktop,
+                  enable: PlatformInfo.isDesktopNative || PlatformInfo.isWeb,
                   onDragEntered: (_) => setState(() => _isDraggingQr = true),
                   onDragExited: (_) => setState(() => _isDraggingQr = false),
                   onDragDone: (details) async {
                     setState(() => _isDraggingQr = false);
                     if (details.files.isNotEmpty) {
-                      await _decodeQrFromImagePath(details.files.first.path);
+                      final bytes = await details.files.first.readAsBytes();
+                      await _decodeQrBytes(bytes);
                     }
                   },
                   child: AnimatedContainer(
@@ -138,11 +131,15 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: _isDraggingQr
-                          ? AppTheme.accent.withValues(alpha: 0.12)
-                          : AppTheme.surfaceAlt,
+                          ? cs.primary.withValues(alpha: 0.12)
+                          : (isDark
+                              ? AppTheme.surfaceAlt
+                              : AppTheme.lightSurfaceAlt),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: _isDraggingQr ? AppTheme.accent : AppTheme.border,
+                        color: _isDraggingQr
+                            ? cs.primary
+                            : (isDark ? AppTheme.border : AppTheme.lightBorder),
                       ),
                     ),
                     child: Column(
@@ -151,15 +148,18 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            if (_supportsLiveCamera)
+                            if (PlatformInfo.supportsLiveCamera)
                               ElevatedButton.icon(
-                                onPressed:
-                                    c.isConnecting ? null : _scanWithCamera,
+                                onPressed: c.phase == WebRtcPhase.connecting
+                                    ? null
+                                    : _scanWithCamera,
                                 icon: const Icon(Icons.camera_alt_rounded),
-                                label: const Text('Сканировать камерой'),
+                                label: const Text('Сканировать QR'),
                               ),
                             FilledButton.tonalIcon(
-                              onPressed: c.isConnecting ? null : _pickQrImage,
+                              onPressed: c.phase == WebRtcPhase.connecting
+                                  ? null
+                                  : _pickQrImage,
                               icon: const Icon(Icons.image_search_rounded),
                               label: const Text('QR из картинки'),
                             ),
@@ -170,32 +170,32 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                           children: [
                             Expanded(
                               child: TextField(
-                                controller: _urlController,
+                                controller: _inputController,
                                 decoration: const InputDecoration(
-                                  hintText: 'http://192.168.1.10:54321/s/...',
-                                  labelText: 'Или вставьте ссылку из QR',
+                                  hintText:
+                                      'XXXXXX-XXXXXX-XXXXXX-XXXXXX или ссылка',
+                                  labelText: 'Код или ссылка из QR',
                                   isDense: true,
                                 ),
-                                onSubmitted: (val) => c.connectToQrPayload(val),
+                                onSubmitted: (val) => c.connectWithInput(val),
                               ),
                             ),
                             const SizedBox(width: 10),
                             ElevatedButton(
-                              onPressed: c.isConnecting
+                              onPressed: c.phase == WebRtcPhase.connecting
                                   ? null
-                                  : () => c.connectToQrPayload(
-                                        _urlController.text,
+                                  : () => c.connectWithInput(
+                                        _inputController.text,
                                       ),
-                              child: c.isConnecting
+                              child: c.phase == WebRtcPhase.connecting
                                   ? const SizedBox(
                                       width: 18,
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Color(0xFF061322),
                                       ),
                                     )
-                                  : const Text('Открыть'),
+                                  : const Text('Войти'),
                             ),
                           ],
                         ),
@@ -213,7 +213,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppTheme.danger.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppTheme.danger.withValues(alpha: 0.5)),
             ),
             child: Row(
@@ -223,70 +223,170 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                 Expanded(child: Text(c.statusError!)),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, size: 18),
-                  onPressed: c.clearError,
+                  onPressed: c.clearStatusMessages,
                 ),
               ],
             ),
           ),
         ],
-        if (c.connectedSession != null) ...[
+        if (c.pendingOffer != null) ...[
           const SizedBox(height: 16),
-          _ConnectedPeerCard(
-            session: c.connectedSession!,
-            isBusy: c.isTransferringClient,
-            saveDirectoryPath: c.saveDirectoryPath,
-            onDownloadAll: () =>
-                c.downloadRemoteFiles(c.connectedSession!.files),
-            onDownloadSingle: (file) => c.downloadRemoteFiles([file]),
-            onPushFiles: _pickFilesToPushToPeer,
-            onDisconnect: c.disconnectPeer,
-          ),
-        ],
-        const SizedBox(height: 18),
-        if (!c.isHostingReceive)
           Card(
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              leading: const CircleAvatar(
-                backgroundColor: AppTheme.surfaceAlt,
-                child: Icon(Icons.qr_code_rounded, color: AppTheme.amber),
-              ),
-              title: const Text(
-                'Показать мой QR для приёма файлов',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: const Text(
-                'Удобно, если на другом устройстве камера — просто отсканируйте этот QR и отправьте файлы сюда.',
-              ),
-              trailing: ElevatedButton(
-                onPressed: c.startReceiveHostSession,
-                child: const Text('Включить'),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Входящие файлы от «${c.pendingOffer!.senderName}»',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Файлов: ${c.pendingOffer!.entries.length} • ${formatBytes(c.pendingOffer!.totalBytes)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 10),
+                  for (final entry in c.pendingOffer!.entries)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.insert_drive_file_outlined,
+                          color: cs.primary),
+                      title: Text(entry.name),
+                      trailing: Text(formatBytes(entry.size)),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: c.acceptIncomingOffer,
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Принять'),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton(
+                        onPressed: c.rejectIncomingOffer,
+                        child: const Text('Отклонить'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          )
-        else if (c.activeQrUrl != null)
-          QrSessionCard(
-            title: 'Ожидание входящих файлов',
-            subtitle: 'Сохранение в: ${c.saveDirectoryPath}',
-            qrUrl: c.activeQrUrl!,
-            interfaces: c.interfaces,
-            selectedInterface: c.selectedInterface,
-            onSelectInterface: c.selectInterface,
-            onStop: c.stopServer,
           ),
+        ],
+        if (c.incomingText != null) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.notes_rounded, color: AppTheme.success),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Полученный текст',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 16),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Скопировать',
+                        icon: const Icon(Icons.copy_rounded),
+                        onPressed: () {
+                          Clipboard.setData(
+                              ClipboardData(text: c.incomingText!));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Текст скопирован')),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: c.clearIncomingText,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppTheme.surfaceAlt
+                          : AppTheme.lightSurfaceAlt,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: SelectableText(c.incomingText!),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (c.connectedLanSession != null) ...[
+          const SizedBox(height: 16),
+          _LanPeerCard(
+            session: c.connectedLanSession!,
+            isBusy: c.isLanTransferring,
+            saveDirectoryPath: c.saveDirectoryDisplay,
+            onDownloadAll: () =>
+                c.downloadLanFiles(c.connectedLanSession!.files),
+            onDownloadSingle: (f) => c.downloadLanFiles([f]),
+            onPushFiles: _pickFilesToPushLan,
+            onDisconnect: c.disconnectLanPeer,
+          ),
+        ],
+        if (c.supportsLocalLan) ...[
+          const SizedBox(height: 18),
+          if (!c.isLanHostingReceive)
+            Card(
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                leading: CircleAvatar(
+                  backgroundColor:
+                      isDark ? AppTheme.surfaceAlt : AppTheme.lightSurfaceAlt,
+                  child: const Icon(Icons.wifi_rounded, color: AppTheme.amber),
+                ),
+                title: const Text(
+                  'Принять локально по Wi-Fi (мой QR)',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: const Text(
+                  'Работает без интернета — отсканируйте этот QR любым устройством или браузером в одной сети.',
+                ),
+                trailing: ElevatedButton(
+                  onPressed: c.startLanReceiveHost,
+                  child: const Text('Включить'),
+                ),
+              ),
+            )
+          else if (c.activeLanQrUrl != null)
+            QrSessionCard(
+              title: 'Ожидание входящих файлов по Wi-Fi',
+              subtitle: 'Сохранение в: ${c.saveDirectoryDisplay}',
+              qrUrl: c.activeLanQrUrl!,
+              interfaces: c.lanInterfaces,
+              selectedInterface: c.selectedLanInterface,
+              onSelectInterface: c.selectLanInterface,
+              onStop: c.stopLanServer,
+            ),
+        ],
         if (receiveProgress.isNotEmpty) ...[
           const SizedBox(height: 18),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Прогресс передачи',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(color: Colors.white70),
-              ),
+              Text('Передачи', style: Theme.of(context).textTheme.titleSmall),
               TextButton(
                 onPressed: c.clearCompletedTransfers,
                 child: const Text('Очистить'),
@@ -302,8 +402,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   }
 }
 
-class _ConnectedPeerCard extends StatelessWidget {
-  const _ConnectedPeerCard({
+class _LanPeerCard extends StatelessWidget {
+  const _LanPeerCard({
     required this.session,
     required this.isBusy,
     required this.saveDirectoryPath,
@@ -323,6 +423,7 @@ class _ConnectedPeerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -339,17 +440,14 @@ class _ConnectedPeerCard extends StatelessWidget {
                     children: [
                       Text(
                         session.deviceName,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 16),
                       ),
                       Text(
                         session.mode == SessionMode.send
-                            ? 'Готов к передаче (${session.files.length} файл.)'
-                            : 'Готов принимать файлы от вас',
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.white70),
+                            ? 'Wi-Fi раздача (${session.files.length} файл.)'
+                            : 'Wi-Fi приёмник',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
@@ -360,12 +458,10 @@ class _ConnectedPeerCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             if (session.mode == SessionMode.send) ...[
-              Text(
-                'Папка сохранения: $saveDirectoryPath',
-                style: const TextStyle(fontSize: 12, color: Colors.white60),
-              ),
+              Text('Папка сохранения: $saveDirectoryPath',
+                  style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 10),
               if (session.files.isNotEmpty)
                 ElevatedButton.icon(
@@ -377,34 +473,26 @@ class _ConnectedPeerCard extends StatelessWidget {
                         : 'Скачать все (${session.files.length})',
                   ),
                 ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               for (final file in session.files)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.insert_drive_file_outlined,
-                      color: AppTheme.accent),
-                  title: Text(
-                    file.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  leading: Icon(Icons.insert_drive_file_outlined,
+                      color: cs.primary),
+                  title: Text(file.name),
                   subtitle: Text(formatBytes(file.sizeBytes)),
                   trailing: IconButton(
-                    tooltip: 'Скачать файл',
                     onPressed: isBusy ? null : () => onDownloadSingle(file),
-                    icon: const Icon(Icons.download_rounded,
-                        color: AppTheme.accent),
+                    icon: Icon(Icons.download_rounded, color: cs.primary),
                   ),
                 ),
-            ] else ...[
+            ] else
               ElevatedButton.icon(
                 onPressed: isBusy ? null : onPushFiles,
                 icon: const Icon(Icons.send_rounded),
                 label: Text(
-                  isBusy ? 'Отправка...' : 'Выбрать файлы и отправить',
-                ),
+                    isBusy ? 'Отправка...' : 'Выбрать файлы и отправить'),
               ),
-            ],
           ],
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'core/storage/paired_devices_store.dart';
 import 'state/luch_controller.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/theme/app_theme.dart';
@@ -33,11 +34,24 @@ class _LuchAppState extends State<LuchApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Луч',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
-      home: HomeScreen(controller: _controller),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final themeMode = switch (_controller.settings.theme) {
+          AppThemePreference.system => ThemeMode.system,
+          AppThemePreference.light => ThemeMode.light,
+          AppThemePreference.dark => ThemeMode.dark,
+        };
+
+        return MaterialApp(
+          title: 'Луч',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: themeMode,
+          home: HomeScreen(controller: _controller),
+        );
+      },
     );
   }
 }
