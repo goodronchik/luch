@@ -1,5 +1,5 @@
 /* Луч — Service Worker для установки PWA и офлайн-оболочки. */
-const VERSION = 'luch-pwa-v1';
+const VERSION = 'luch-pwa-v0.0.2a';
 const BASE = new URL('./', self.registration.scope).pathname;
 const SHELL = [
   BASE,
