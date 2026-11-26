@@ -37,7 +37,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
       MaterialPageRoute(builder: (_) => const QrScannerSheet()),
     );
     if (result != null && result.isNotEmpty) {
-      _inputController.text = result;
+      _inputController.clear();
       await widget.controller.connectWithInput(result);
     }
   }
@@ -53,8 +53,25 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
       );
       return;
     }
-    _inputController.text = decoded;
+    _inputController.clear();
     await widget.controller.connectWithInput(decoded);
+  }
+
+  Future<void> _submitManualInput([String? overrideValue]) async {
+    final raw = (overrideValue ?? _inputController.text).trim();
+    if (raw.isEmpty) return;
+    _inputController.clear();
+    FocusScope.of(context).unfocus();
+    await widget.controller.connectWithInput(raw);
+  }
+
+  Future<void> _openReceivedFile(String? path) async {
+    final err = await widget.controller.openReceivedFile(path);
+    if (err != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err)),
+      );
+    }
   }
 
   Future<void> _pickQrImage() async {
@@ -177,16 +194,14 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                                   labelText: 'Код или ссылка из QR',
                                   isDense: true,
                                 ),
-                                onSubmitted: (val) => c.connectWithInput(val),
+                                onSubmitted: (val) => _submitManualInput(val),
                               ),
                             ),
                             const SizedBox(width: 10),
                             ElevatedButton(
                               onPressed: c.phase == WebRtcPhase.connecting
                                   ? null
-                                  : () => c.connectWithInput(
-                                        _inputController.text,
-                                      ),
+                                  : _submitManualInput,
                               child: c.phase == WebRtcPhase.connecting
                                   ? const SizedBox(
                                       width: 18,
@@ -395,7 +410,12 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
           ),
           const SizedBox(height: 8),
           for (final item in receiveProgress)
-            TransferProgressTile(progress: item),
+            TransferProgressTile(
+              progress: item,
+              onTapOpen: item.savedPath != null
+                  ? () => _openReceivedFile(item.savedPath)
+                  : null,
+            ),
         ],
       ],
     );

@@ -7,6 +7,35 @@ import 'package:web/web.dart' as web;
 import '../webrtc/transfer_protocol.dart';
 import 'file_io_adapter.dart';
 
+final Map<String, ({Uint8List bytes, String name, String mimeType})>
+    _webReceivedCache = {};
+
+void _triggerBrowserDownload(Uint8List bytes, String name, String mimeType) {
+  final blob = web.Blob(
+    [bytes.toJS].toJS,
+    web.BlobPropertyBag(type: mimeType),
+  );
+  final url = web.URL.createObjectURL(blob);
+  final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+    ..href = url
+    ..download = name
+    ..rel = 'noopener';
+  web.document.body?.append(anchor);
+  anchor.click();
+  anchor.remove();
+  Future<void>.delayed(
+    const Duration(seconds: 60),
+    () => web.URL.revokeObjectURL(url),
+  );
+}
+
+bool reopenCachedWebFile(String tokenPath) {
+  final cached = _webReceivedCache[tokenPath];
+  if (cached == null) return false;
+  _triggerBrowserDownload(cached.bytes, cached.name, cached.mimeType);
+  return true;
+}
+
 class _WebOutgoingFileSource implements OutgoingFileSource {
   _WebOutgoingFileSource({
     required this.id,
@@ -53,23 +82,17 @@ class _WebIncomingFileSink implements IncomingFileSink {
   Future<String> close() async {
     if (_aborted) throw StateError('Приём отменён');
     final bytes = _builder.takeBytes();
-    final blob = web.Blob(
-      [bytes.toJS].toJS,
-      web.BlobPropertyBag(type: entry.type),
+    _triggerBrowserDownload(bytes, entry.name, entry.type);
+    final key = 'web://dl/${DateTime.now().microsecondsSinceEpoch}/${entry.name}';
+    if (_webReceivedCache.length > 20) {
+      _webReceivedCache.remove(_webReceivedCache.keys.first);
+    }
+    _webReceivedCache[key] = (
+      bytes: bytes,
+      name: entry.name,
+      mimeType: entry.type,
     );
-    final url = web.URL.createObjectURL(blob);
-    final anchor = web.document.createElement('a') as web.HTMLAnchorElement
-      ..href = url
-      ..download = entry.name
-      ..rel = 'noopener';
-    web.document.body?.append(anchor);
-    anchor.click();
-    anchor.remove();
-    Future<void>.delayed(
-      const Duration(seconds: 60),
-      () => web.URL.revokeObjectURL(url),
-    );
-    return 'Загружено в браузере';
+    return key;
   }
 
   @override

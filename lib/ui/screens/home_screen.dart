@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/app_version.dart';
 import '../../state/luch_controller.dart';
 import '../theme/app_theme.dart';
 import 'devices_screen.dart';
@@ -56,19 +57,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Луч',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-                    ),
-                    Text(
-                      c.settings.deviceName,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Луч',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 18),
+                      ),
+                      Text(
+                        '${c.settings.deviceName} • v$luchAppVersion',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

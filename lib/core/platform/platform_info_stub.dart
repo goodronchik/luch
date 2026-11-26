@@ -7,4 +7,5 @@ abstract final class PlatformInfo {
   static bool get supportsLocalLanServer => false;
   static String? consumeInitialPairSecret() => null;
   static Future<bool> openFolder(String path) async => false;
+  static Future<String?> openFile(String path) async => 'Не поддерживается';
 }

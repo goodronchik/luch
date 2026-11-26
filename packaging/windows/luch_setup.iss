@@ -1,7 +1,11 @@
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.1"
+#endif
+
 [Setup]
 AppId={{8D6B2A1E-5B44-4E2F-9F1A-3B9C102D5E01}
 AppName=Луч (Luch)
-AppVersion=1.0.0
+AppVersion={#MyAppVersion}
 AppPublisher=Luch
 DefaultDirName={autopf}\Luch
 DefaultGroupName=Луч

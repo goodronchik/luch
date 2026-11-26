@@ -850,13 +850,23 @@ class LuchController extends ChangeNotifier {
     }
     if (match == null) return;
 
-    if (_settings.autoAccept && _phase == WebRtcPhase.idle) {
+    final canAutoAccept = _phase == WebRtcPhase.idle ||
+        _phase == WebRtcPhase.done ||
+        _phase == WebRtcPhase.error;
+    if (canAutoAccept) {
       _presence?.replyCall(callId: event.callId, accepted: true);
       unawaited(startWebRtcJoin(match.secret));
       return;
     }
     _incomingCall = event;
     notifyListeners();
+  }
+
+  Future<String?> openReceivedFile(String? path) async {
+    if (path == null || path.isEmpty) {
+      return 'Файл недоступен для открытия';
+    }
+    return PlatformInfo.openFile(path);
   }
 
   Future<void> acceptIncomingCall() async {

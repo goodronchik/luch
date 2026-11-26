@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/app_version.dart';
 import '../../core/platform/platform_info.dart';
 import '../../core/storage/paired_devices_store.dart';
 import '../../state/luch_controller.dart';
@@ -125,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SwitchListTile(
                 title: const Text('Принимать файлы автоматически'),
                 subtitle: const Text(
-                  'Не спрашивать подтверждение от сопряжённых и сканируемых устройств',
+                  'Подключения от сопряжённых устройств принимаются автоматически; эта настройка также включает автоприём файлов',
                 ),
                 value: s.autoAccept,
                 onChanged: (val) => c.updateSettings(autoAccept: val),
@@ -235,6 +236,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.info_outline_rounded),
+            title: const Text('О приложении «Луч»'),
+            subtitle: Text(
+              'Версия сборки: $luchAppVersion (build $luchAppBuildNumber)',
+            ),
+          ),
+        ),
       ],
     );
   }

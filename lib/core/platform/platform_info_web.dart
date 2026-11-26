@@ -1,6 +1,7 @@
 import 'package:web/web.dart' as web;
 
 import '../webrtc/pairing.dart';
+import 'file_io_adapter_web.dart' as web_io;
 
 abstract final class PlatformInfo {
   static String platformLabel() => 'Web';
@@ -34,4 +35,10 @@ abstract final class PlatformInfo {
   }
 
   static Future<bool> openFolder(String path) async => false;
+
+  static Future<String?> openFile(String path) async {
+    final ok = web_io.reopenCachedWebFile(path);
+    if (ok) return null;
+    return 'Файл уже сохранён в загрузки браузера';
+  }
 }

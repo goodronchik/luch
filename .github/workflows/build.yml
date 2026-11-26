@@ -57,8 +57,9 @@ jobs:
       - run: flutter build linux --release
       - name: Package .deb
         run: |
+          APP_VER=$(grep '^version:' pubspec.yaml | sed -E 's/^version:\s*([0-9.]+).*/\1/')
           chmod +x packaging/linux/build_deb.sh
-          ./packaging/linux/build_deb.sh 1.0.0
+          ./packaging/linux/build_deb.sh "$APP_VER"
       - uses: actions/upload-artifact@v4
         with:
           name: luch-linux-deb
@@ -76,7 +77,10 @@ jobs:
       - run: flutter pub get
       - run: flutter build windows --release
       - name: Build Inno Setup installer
-        run: iscc packaging/windows/luch_setup.iss
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)').Matches[0].Groups[1].Value
+          iscc "/DMyAppVersion=$ver" packaging/windows/luch_setup.iss
       - uses: actions/upload-artifact@v4
         with:
           name: luch-windows-installer

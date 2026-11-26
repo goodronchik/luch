@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 abstract final class PlatformInfo {
@@ -36,5 +37,18 @@ abstract final class PlatformInfo {
   static Future<bool> openFolder(String path) async {
     if (!isDesktopNative) return false;
     return launchUrl(Uri.directory(path));
+  }
+
+  static Future<String?> openFile(String path) async {
+    if (path.isEmpty) return 'Путь к файлу не найден';
+    final file = File(path);
+    if (!await file.exists()) {
+      return 'Файл не найден на устройстве';
+    }
+    final result = await OpenFilex.open(path);
+    if (result.type == ResultType.done) return null;
+    return result.message.isNotEmpty
+        ? result.message
+        : 'Не удалось открыть файл';
   }
 }
