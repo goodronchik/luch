@@ -1,6 +1,6 @@
 # Луч (Luch)
 
-Кроссплатформенное устанавливаемое приложение для быстрого обмена файлами между **Android, iOS, Windows и Linux** через **QR-код** по локальной сети Wi-Fi.
+Кроссплатформенное устанавливаемое приложение для быстрого обмена файлами между **Android, iOS, macOS, Windows и Linux** через **QR-код** по локальной сети Wi-Fi.
 
 ## Возможности
 - **Прямая передача по локальному Wi-Fi** — без интернета, облачных серверов и сжатия файлов.
@@ -30,6 +30,12 @@ flutter run --release
 flutter build ipa
 # либо без подписи для AltStore / Sideloadly:
 flutter build ios --release --no-codesign
+```
+
+### macOS (`.dmg`)
+```bash
+flutter build macos --release
+# Приложение: build/macos/Build/Products/Release/luch.app
 ```
 
 ### Windows (`.exe` установщик)

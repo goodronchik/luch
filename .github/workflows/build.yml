@@ -1,4 +1,4 @@
-name: Build Installers (Android, iOS, Windows, Linux)
+name: Build Installers (Android, iOS, macOS, Windows, Linux)
 
 on:
   push:
@@ -102,3 +102,25 @@ jobs:
         with:
           name: luch-ios-ipa
           path: build/ipa/Luch-iOS-unsigned.ipa
+
+  build-macos:
+    name: macOS (.dmg)
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - name: Package .dmg
+        run: |
+          mkdir -p build/dmg-staging build/dmg
+          cp -R build/macos/Build/Products/Release/luch.app build/dmg-staging/Луч.app
+          ln -s /Applications build/dmg-staging/Applications
+          hdiutil create -volname "Луч" -srcfolder build/dmg-staging -ov -format UDZO build/dmg/Luch-macOS.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luch-macos-dmg
+          path: build/dmg/Luch-macOS.dmg
