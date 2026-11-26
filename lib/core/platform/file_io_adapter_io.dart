@@ -113,8 +113,12 @@ class _DiskIncomingFileSink implements IncomingFileSink {
 }
 
 Future<String> resolveDefaultSaveDirectoryPath() async {
-  final dir = await DownloadPathService.resolveLuchDirectory();
-  return dir.path;
+  try {
+    final dir = await DownloadPathService.resolveLuchDirectory();
+    return dir.path;
+  } catch (_) {
+    return Directory.systemTemp.path;
+  }
 }
 
 Future<IncomingFileSink> createIncomingSink(

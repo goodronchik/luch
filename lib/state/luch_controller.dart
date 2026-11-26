@@ -154,7 +154,12 @@ class LuchController extends ChangeNotifier {
     );
     _settings = loaded.settings;
     _devices = loaded.devices;
-    _defaultSaveDir = await PlatformFileStorage.resolveDefaultSaveDirectoryPath();
+    try {
+      _defaultSaveDir =
+          await PlatformFileStorage.resolveDefaultSaveDirectoryPath();
+    } catch (_) {
+      _defaultSaveDir = 'Загрузки';
+    }
 
     _presence = PresenceClient(
       url: _buildWsUrl(),
