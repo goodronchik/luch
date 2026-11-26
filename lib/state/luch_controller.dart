@@ -580,7 +580,13 @@ class LuchController extends ChangeNotifier {
       },
     );
     _peer = peer;
-    await peer.initialize();
+    try {
+      await peer.initialize();
+    } catch (e) {
+      _phase = WebRtcPhase.error;
+      _statusError = 'Ошибка инициализации WebRTC: $e';
+      notifyListeners();
+    }
   }
 
   Future<void> _handlePeerReady(

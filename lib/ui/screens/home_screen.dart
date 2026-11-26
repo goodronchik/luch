@@ -46,21 +46,13 @@ class _HomeScreenState extends State<HomeScreen> {
             titleSpacing: 16,
             title: Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [cs.primary, AppTheme.cyan],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: const Icon(
-                    Icons.bolt_rounded,
-                    color: Color(0xFF071203),
-                    size: 22,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/images/luch_icon.png',
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover,
                   ),
                 ),
                 const SizedBox(width: 10),

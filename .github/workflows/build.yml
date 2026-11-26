@@ -135,7 +135,7 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - run: flutter build web --release --base-href /luch/
+      - run: flutter build web --release --base-href /luch/ --no-web-resources-cdn
       - name: Archive Web PWA bundle
         run: |
           mkdir -p build/web-dist

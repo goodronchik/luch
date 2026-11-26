@@ -13,6 +13,7 @@ class PeerDataLink {
 
   final RTCDataChannel _channel;
 
+  void Function()? onOpen;
   void Function(String text)? onText;
   void Function(Uint8List data)? onBinary;
   void Function(String reason)? onClose;
@@ -26,7 +27,9 @@ class PeerDataLink {
       }
     };
     _channel.onDataChannelState = (state) {
-      if (state == RTCDataChannelState.RTCDataChannelClosed ||
+      if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        onOpen?.call();
+      } else if (state == RTCDataChannelState.RTCDataChannelClosed ||
           state == RTCDataChannelState.RTCDataChannelClosing) {
         onClose?.call('Канал передачи закрыт');
       }
@@ -92,6 +95,15 @@ class PeerSession {
   PeerDataLink? _link;
   Timer? _authTimer;
   final List<RTCIceCandidate> _pendingCandidates = [];
+  final List<dynamic> _earlySignals = [];
+  final List<String> _earlyAuthTexts = [];
+  Future<void> _signalQueue = Future.value();
+
+  bool _initialized = false;
+  bool _channelOpened = false;
+  bool _fingerprintsReady = false;
+  String? _cachedLocalSdp;
+  String? _cachedRemoteSdp;
 
   String _peerName = 'Устройство';
   String _peerDeviceId = '';
@@ -111,6 +123,11 @@ class PeerSession {
       'sdpSemantics': 'unified-plan',
     };
     final pc = await createPeerConnection(config);
+    if (_disposed) {
+      await pc.close();
+      await pc.dispose();
+      return;
+    }
     _pc = pc;
 
     pc.onIceCandidate = (candidate) {
@@ -129,11 +146,19 @@ class PeerSession {
       }
     };
 
+    pc.onIceConnectionState = (state) {
+      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        _fail(StateError('Не удалось соединиться по сети (ICE)'));
+      }
+    };
+
     pc.onDataChannel = (channel) {
       if (channel.label == 'luch') {
         _attachChannel(channel);
       }
     };
+
+    _initialized = true;
 
     if (isHost) {
       final init = RTCDataChannelInit()..ordered = true;
@@ -142,15 +167,34 @@ class PeerSession {
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       final local = await pc.getLocalDescription() ?? offer;
+      _cachedLocalSdp = local.sdp;
       sendSignal({
         'kind': 'description',
         'description': local.toMap(),
       });
     }
+
+    if (_earlySignals.isNotEmpty) {
+      final queued = List<dynamic>.from(_earlySignals);
+      _earlySignals.clear();
+      for (final item in queued) {
+        await handleSignal(item);
+      }
+    }
   }
 
-  Future<void> handleSignal(dynamic raw) async {
-    if (_disposed || raw is! Map<String, dynamic>) return;
+  Future<void> handleSignal(dynamic raw) {
+    if (_disposed || raw is! Map<String, dynamic>) return Future.value();
+    if (!_initialized || _pc == null) {
+      _earlySignals.add(raw);
+      return Future.value();
+    }
+    _signalQueue = _signalQueue.then((_) => _processSignal(raw));
+    return _signalQueue;
+  }
+
+  Future<void> _processSignal(Map<String, dynamic> raw) async {
+    if (_disposed) return;
     final pc = _pc;
     if (pc == null) return;
 
@@ -163,7 +207,7 @@ class PeerSession {
         candMap['sdpMid'] as String?,
         (candMap['sdpMLineIndex'] as num?)?.toInt(),
       );
-      if (await pc.getRemoteDescription() != null) {
+      if (_cachedRemoteSdp != null || await pc.getRemoteDescription() != null) {
         await pc.addCandidate(candidate).catchError((_) {});
       } else {
         _pendingCandidates.add(candidate);
@@ -179,16 +223,19 @@ class PeerSession {
       if (type == null || sdp == null) return;
 
       if (type == 'offer' && !isHost) {
+        _cachedRemoteSdp = sdp;
         await pc.setRemoteDescription(RTCSessionDescription(sdp, type));
         await _flushCandidates();
         final answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         final local = await pc.getLocalDescription() ?? answer;
+        _cachedLocalSdp = local.sdp;
         sendSignal({
           'kind': 'description',
           'description': local.toMap(),
         });
       } else if (type == 'answer' && isHost) {
+        _cachedRemoteSdp = sdp;
         await pc.setRemoteDescription(RTCSessionDescription(sdp, type));
         await _flushCandidates();
       }
@@ -210,15 +257,21 @@ class PeerSession {
     final link = PeerDataLink(channel);
     _link = link;
 
-    channel.onDataChannelState = (state) {
-      if (state == RTCDataChannelState.RTCDataChannelOpen) {
-        _onChannelOpen();
-      } else if (state == RTCDataChannelState.RTCDataChannelClosed &&
-          !_handedOff &&
-          !_disposed) {
-        _fail(StateError('Канал передачи закрыт'));
+    // Attach message & state listeners synchronously so early `hello` frames are never dropped.
+    link.onText = (raw) {
+      if (!_fingerprintsReady) {
+        _earlyAuthTexts.add(raw);
+        return;
+      }
+      _handleAuthText(raw);
+    };
+    link.onOpen = _onChannelOpen;
+    link.onClose = (reason) {
+      if (!_disposed && !_handedOff) {
+        _fail(StateError(reason));
       }
     };
+    link.attachHandlers();
 
     if (channel.state == RTCDataChannelState.RTCDataChannelOpen) {
       _onChannelOpen();
@@ -226,14 +279,13 @@ class PeerSession {
   }
 
   Future<void> _onChannelOpen() async {
-    if (_disposed || _handedOff || _link == null) return;
+    if (_disposed || _handedOff || _channelOpened || _link == null) return;
+    _channelOpened = true;
     final pc = _pc;
     if (pc == null) return;
 
-    final localDesc = await pc.getLocalDescription();
-    final remoteDesc = await pc.getRemoteDescription();
-    final localSdp = localDesc?.sdp;
-    final remoteSdp = remoteDesc?.sdp;
+    final localSdp = _cachedLocalSdp ?? (await pc.getLocalDescription())?.sdp;
+    final remoteSdp = _cachedRemoteSdp ?? (await pc.getRemoteDescription())?.sdp;
     if (localSdp == null || remoteSdp == null) {
       _fail(StateError('SDP ещё не готов — нечего проверять'));
       return;
@@ -242,26 +294,18 @@ class PeerSession {
     try {
       _localFp = LuchCrypto.normalizeDtlsFingerprint(localSdp);
       _remoteFp = LuchCrypto.normalizeDtlsFingerprint(remoteSdp);
+      _fingerprintsReady = true;
     } catch (e) {
       _fail(e);
       return;
     }
-
-    final link = _link!;
-    link.onText = _handleAuthText;
-    link.onClose = (reason) {
-      if (!_disposed && !_handedOff) {
-        _fail(StateError(reason));
-      }
-    };
-    link.attachHandlers();
 
     _authTimer?.cancel();
     _authTimer = Timer(const Duration(seconds: 20), () {
       _fail(TimeoutException('Не удалось подтвердить канал за 20 секунд'));
     });
 
-    await link.sendText(
+    await _link!.sendText(
       jsonEncode({
         't': 'hello',
         'v': luchProtocolVersion,
@@ -270,6 +314,15 @@ class PeerSession {
         'deviceId': deviceId,
       }),
     );
+
+    if (_earlyAuthTexts.isNotEmpty) {
+      final buffered = List<String>.from(_earlyAuthTexts);
+      _earlyAuthTexts.clear();
+      for (final msg in buffered) {
+        _handleAuthText(msg);
+      }
+    }
+
     await _maybeSendAuth();
   }
 
@@ -344,6 +397,7 @@ class PeerSession {
     _handedOff = true;
     _authTimer?.cancel();
     _authTimer = null;
+    _link!.onOpen = null;
     onReady(_link!, _peerName, _peerDeviceId);
   }
 
