@@ -48,7 +48,10 @@ jobs:
           fi
           flutter build apk --release
           if [ -n "${LUCH_KEYSTORE_BASE64:-}" ]; then
-            keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk | grep -E "Owner:|SHA256:"
+            APKSIGNER=$(ls -1 "${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -n 1 || true)
+            if [ -n "$APKSIGNER" ]; then
+              "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk
+            fi
             rm -f "${RUNNER_TEMP}/luch_release.p12"
           fi
       - uses: actions/upload-artifact@v4
