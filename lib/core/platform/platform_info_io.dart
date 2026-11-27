@@ -1,9 +1,12 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 abstract final class PlatformInfo {
+  static const MethodChannel _deepLinkChannel =
+      MethodChannel('app.luch.luch/deep_link');
   static String platformLabel() {
     if (Platform.isAndroid) return 'Android';
     if (Platform.isIOS) return 'iOS';
@@ -33,6 +36,28 @@ abstract final class PlatformInfo {
   static bool get supportsLocalLanServer => true;
 
   static String? consumeInitialPairSecret() => null;
+
+  static Future<String?> consumeInitialDeepLink() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return null;
+    try {
+      final link = await _deepLinkChannel.invokeMethod<String>('getInitialLink');
+      return (link != null && link.trim().isNotEmpty) ? link.trim() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void listenIncomingDeepLinks(void Function(String link) onLink) {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    _deepLinkChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onLink') {
+        final raw = call.arguments;
+        if (raw is String && raw.trim().isNotEmpty) {
+          onLink(raw.trim());
+        }
+      }
+    });
+  }
 
   static Future<bool> openFolder(String path) async {
     if (!isDesktopNative) return false;

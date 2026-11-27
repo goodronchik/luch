@@ -6,6 +6,8 @@ abstract final class PlatformInfo {
   static bool get supportsLiveCamera => false;
   static bool get supportsLocalLanServer => false;
   static String? consumeInitialPairSecret() => null;
+  static Future<String?> consumeInitialDeepLink() async => null;
+  static void listenIncomingDeepLinks(void Function(String link) onLink) {}
   static Future<bool> openFolder(String path) async => false;
   static Future<String?> openFile(String path) async => 'Не поддерживается';
 }

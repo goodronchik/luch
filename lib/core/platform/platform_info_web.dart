@@ -34,6 +34,12 @@ abstract final class PlatformInfo {
     return secret;
   }
 
+  static Future<String?> consumeInitialDeepLink() async {
+    return consumeInitialPairSecret();
+  }
+
+  static void listenIncomingDeepLinks(void Function(String link) onLink) {}
+
   static Future<bool> openFolder(String path) async => false;
 
   static Future<String?> openFile(String path) async {

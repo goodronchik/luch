@@ -19,6 +19,33 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tabIndex = 0;
+  late int _lastReceiveTick;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastReceiveTick = widget.controller.switchToReceiveTick;
+    if (_lastReceiveTick > 0) {
+      _tabIndex = 1;
+    }
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    final tick = widget.controller.switchToReceiveTick;
+    if (tick != _lastReceiveTick) {
+      _lastReceiveTick = tick;
+      if (mounted && _tabIndex != 1) {
+        setState(() => _tabIndex = 1);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

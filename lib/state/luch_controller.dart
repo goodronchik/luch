@@ -84,6 +84,9 @@ class LuchController extends ChangeNotifier {
   String? _incomingText;
   String? _statusError;
   String? _notice;
+  bool _initialized = false;
+  String? _queuedDeepLink;
+  int _switchToReceiveTick = 0;
 
   // Queued files & transfers & history
   final List<OutgoingFileSource> _queuedFiles = [];
@@ -118,6 +121,7 @@ class LuchController extends ChangeNotifier {
   String get signalingStatus => _signalingStatus;
   String get presenceStatus => _presenceStatus;
   IncomingCallEvent? get incomingCall => _incomingCall;
+  int get switchToReceiveTick => _switchToReceiveTick;
   TransferManifest? get pendingOffer => _pendingOffer;
   String? get incomingText => _incomingText;
   String? get statusError => _statusError;
@@ -181,14 +185,32 @@ class LuchController extends ChangeNotifier {
       await refreshLanInterfaces();
     }
 
+    PlatformInfo.listenIncomingDeepLinks(handleIncomingLink);
+    _initialized = true;
+
     notifyListeners();
     unawaited(loadServerConfig(force: true));
 
-    // If opened via Web URL `#p=<secret>`, auto-join!
-    final initialSecret = PlatformInfo.consumeInitialPairSecret();
-    if (initialSecret != null) {
-      await startWebRtcJoin(initialSecret);
+    // If opened via Android App Link / Web URL `#p=<secret>` / `luch://`, switch to Receive and auto-connect.
+    final initialLink =
+        _queuedDeepLink ?? await PlatformInfo.consumeInitialDeepLink();
+    _queuedDeepLink = null;
+    if (initialLink != null && initialLink.isNotEmpty) {
+      await handleIncomingLink(initialLink);
     }
+  }
+
+  /// Handles an incoming deep link (cold start or warm resume via QR/URL).
+  Future<void> handleIncomingLink(String rawLink) async {
+    final trimmed = rawLink.trim();
+    if (trimmed.isEmpty) return;
+    if (!_initialized) {
+      _queuedDeepLink = trimmed;
+      return;
+    }
+    _switchToReceiveTick++;
+    notifyListeners();
+    await connectWithInput(trimmed);
   }
 
   // --- Settings & Paired Devices ---
