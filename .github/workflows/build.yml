@@ -34,21 +34,23 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - name: Decode Android release keystore
-        if: ${{ secrets.LUCH_KEYSTORE_BASE64 != '' }}
-        shell: bash
-        run: |
-          echo "${{ secrets.LUCH_KEYSTORE_BASE64 }}" | base64 --decode > "${{ runner.temp }}/luch_release.p12"
       - name: Build signed APK
         env:
-          LUCH_KEYSTORE_PATH: ${{ secrets.LUCH_KEYSTORE_BASE64 != '' && format('{0}/luch_release.p12', runner.temp) || '' }}
+          LUCH_KEYSTORE_BASE64: ${{ secrets.LUCH_KEYSTORE_BASE64 }}
           LUCH_KEYSTORE_PASS: ${{ secrets.LUCH_KEYSTORE_PASS }}
           LUCH_KEY_ALIAS: ${{ secrets.LUCH_KEY_ALIAS }}
           LUCH_KEY_PASS: ${{ secrets.LUCH_KEY_PASS }}
-        run: flutter build apk --release
-      - name: Verify APK signing fingerprint
-        if: ${{ secrets.LUCH_KEYSTORE_BASE64 != '' }}
-        run: keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk | grep -E "Owner:|SHA256:"
+        shell: bash
+        run: |
+          if [ -n "${LUCH_KEYSTORE_BASE64:-}" ]; then
+            echo "$LUCH_KEYSTORE_BASE64" | base64 --decode > "${RUNNER_TEMP}/luch_release.p12"
+            export LUCH_KEYSTORE_PATH="${RUNNER_TEMP}/luch_release.p12"
+          fi
+          flutter build apk --release
+          if [ -n "${LUCH_KEYSTORE_BASE64:-}" ]; then
+            keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk | grep -E "Owner:|SHA256:"
+            rm -f "${RUNNER_TEMP}/luch_release.p12"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: luch-android-apk
